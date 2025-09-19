@@ -30,6 +30,7 @@ public class ConfigUtils {
                 IOUtils.readLines(ConfigUtils.class.getResourceAsStream("/default-config.json"),
                         StandardCharsets.UTF_8));
 
+        // then read custom config from file
         String configJson = null;
         try {
             configJson = String.join("\n", IOUtils.readLines(new FileInputStream(fileName), StandardCharsets.UTF_8));
@@ -37,12 +38,14 @@ public class ConfigUtils {
             throw new IllegalStateException(String.format("Cannot read configuration file: %s", fileName), ex);
         }
 
+        // parse both JSONs
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         JsonReader readerDefault = new JsonReader(new StringReader(defaultConfigJson));
         readerDefault.setLenient(true);
         JsonReader reader = new JsonReader(new StringReader(configJson));
         reader.setLenient(true);
 
+        // parse to generic map
         Map<String, Object> defaultConfigObj = gson.fromJson(readerDefault, Map.class);
         Map<String, Object> configObj = gson.fromJson(reader, Map.class);
 
