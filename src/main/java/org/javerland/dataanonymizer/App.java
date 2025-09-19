@@ -2,7 +2,10 @@
 package org.javerland.dataanonymizer;
 
 import org.javerland.dataanonymizer.model.Config;
+import org.javerland.dataanonymizer.model.TableMetadata;
 import org.javerland.dataanonymizer.util.ConfigUtils;
+import org.javerland.dataanonymizer.util.MetadataReader;
+import org.javerland.dataanonymizer.util.TableBatcher;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -10,6 +13,11 @@ import picocli.CommandLine.Option;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Main application class for the Data Anonymizer tool.
@@ -31,6 +39,8 @@ public class App implements Runnable {
     private String username = null;
     @Option(names = { "-p", "--password" }, description = "Password", required = false)
     private String password = null;
+    @Option(names = { "-s", "--schema" }, description = "Schema", required = false)
+    private String schema = null;
     @Option(names = { "-c", "--config" }, description = "Configuration file", required = false)
     private String configFile = null;
     @Option(names = { "-t", "--threads" }, description = "Thread pooling count for connections", required = false)
@@ -43,15 +53,29 @@ public class App implements Runnable {
             Config config = ConfigUtils.load(configFile);
             // load JDBC driver and try connection
             Class.forName(driver);
-            // TODO try to connections with thread pooling
+            // try to connections with thread pooling
             try (Connection conn = DriverManager.getConnection(url)) {
                 // don't need big transaction, each update is atomic
                 conn.setAutoCommit(true);
-                // TODO for first is needed read medata from DB and select all tables and columns to anonymize by config
+                // For first is needed read medata from DB and select all tables ...
+                Map<String, TableMetadata> tables = MetadataReader.loadAllTables(conn, schema);
+                List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, 5);
+                // ... and columns to anonymize by config
+                try (ExecutorService executor = Executors.newFixedThreadPool(5)) {
+                    List<CompletableFuture<Void>> futures = batches.stream()
+                            .map(bs -> CompletableFuture.runAsync(() -> bs.forEach(this::processTable), executor))
+                            .toList();
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+                }
             }
         } catch (ClassNotFoundException | SQLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }
+    }
+
+    private void processTable(TableMetadata table) {
+        // TODO ...
+        System.out.println("Processing table: " + table.getName());
     }
 
     public static void main(String[] args) {
