@@ -6,6 +6,7 @@ import org.javerland.dataanonymizer.model.TableMetadata;
 import org.javerland.dataanonymizer.util.ConfigUtils;
 import org.javerland.dataanonymizer.util.MetadataReader;
 import org.javerland.dataanonymizer.util.TableBatcher;
+import org.javerland.dataanonymizer.util.TableProcessor;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -43,8 +44,8 @@ public class App implements Runnable {
     private String schema = null;
     @Option(names = { "-c", "--config" }, description = "Configuration file", required = false)
     private String configFile = null;
-    @Option(names = { "-t", "--threads" }, description = "Thread pooling count for connections", required = false)
-    private Integer threadPoolingCount = null;
+    @Option(names = { "-t", "--threads" }, description = "Thread pooling count for connections", defaultValue = "5")
+    private int threadPoolingCount = 5;
 
     @Override
     public void run() {
@@ -61,21 +62,15 @@ public class App implements Runnable {
                 Map<String, TableMetadata> tables = MetadataReader.loadAllTables(conn, schema);
                 List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, 5);
                 // ... and columns to anonymize by config
-                try (ExecutorService executor = Executors.newFixedThreadPool(5)) {
-                    List<CompletableFuture<Void>> futures = batches.stream()
-                            .map(bs -> CompletableFuture.runAsync(() -> bs.forEach(this::processTable), executor))
-                            .toList();
+                try (ExecutorService executor = Executors.newFixedThreadPool(threadPoolingCount)) {
+                    List<CompletableFuture<Void>> futures = batches.stream().map(bs -> CompletableFuture.runAsync(
+                            () -> bs.forEach(b -> new TableProcessor(b).process()), executor)).toList();
                     CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
                 }
             }
         } catch (ClassNotFoundException | SQLException ex) {
             throw new IllegalStateException(ex.getMessage(), ex);
         }
-    }
-
-    private void processTable(TableMetadata table) {
-        // TODO ...
-        System.out.println("Processing table: " + table.getName());
     }
 
     public static void main(String[] args) {
