@@ -25,6 +25,11 @@ public class ConfigUtils {
         // TODO fileName can be null, then load only default config
         // TODO load from config JSON file, read default and nmerge with custom if exists
 
+        // first needed to read default config from resources
+        String defaultConfigJson = String.join("\n",
+                IOUtils.readLines(ConfigUtils.class.getResourceAsStream("/default-config.json"),
+                        StandardCharsets.UTF_8));
+
         String configJson = null;
         try {
             configJson = String.join("\n", IOUtils.readLines(new FileInputStream(fileName), StandardCharsets.UTF_8));
@@ -33,10 +38,18 @@ public class ConfigUtils {
         }
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        JsonReader readerDefault = new JsonReader(new StringReader(defaultConfigJson));
+        readerDefault.setLenient(true);
         JsonReader reader = new JsonReader(new StringReader(configJson));
         reader.setLenient(true);
 
+        Map<String, Object> defaultConfigObj = gson.fromJson(readerDefault, Map.class);
         Map<String, Object> configObj = gson.fromJson(reader, Map.class);
+
+        // merge defaultConfigObj with configObj, configObj has precedence
+        defaultConfigObj.putAll(configObj);
+
+        // TODO map defaultConfigObj to Config class
 
         return null; // TODO return new Config(configObj);
     }
