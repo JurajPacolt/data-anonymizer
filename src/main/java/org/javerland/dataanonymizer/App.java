@@ -54,8 +54,8 @@ public class App implements Runnable {
             Config config = ConfigUtils.load(configFile);
             // load JDBC driver and try connection
             Class.forName(driver);
-            // try to connections with thread pooling
-            try (Connection conn = DriverManager.getConnection(url)) {
+            // connection is needed for metadata reading
+            try (Connection conn = DriverManager.getConnection(url, username, password)) {
                 // don't need big transaction, each update is atomic
                 conn.setAutoCommit(true);
                 // For first is needed read medata from DB and select all tables ...
@@ -63,8 +63,18 @@ public class App implements Runnable {
                 List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, 5);
                 // ... and columns to anonymize by config
                 try (ExecutorService executor = Executors.newFixedThreadPool(threadPoolingCount)) {
-                    List<CompletableFuture<Void>> futures = batches.stream().map(bs -> CompletableFuture.runAsync(
-                            () -> bs.forEach(b -> new TableProcessor(b).process()), executor)).toList();
+                    List<CompletableFuture<Void>> futures = batches.stream()
+                            .map(bs -> CompletableFuture.runAsync(() -> {
+                                // each thread will have own connection from pool ...
+                                try {
+                                    try (Connection connection = DriverManager.getConnection(url, username, password)) {
+                                        connection.setAutoCommit(true);
+                                        bs.forEach(b -> new TableProcessor(connection, b).process());
+                                    }
+                                } catch (SQLException ex) {
+                                    throw new IllegalStateException(ex.getMessage(), ex);
+                                }
+                            }, executor)).toList();
                     CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
                 }
             }

@@ -3,7 +3,7 @@ package org.javerland.dataanonymizer.util;
 
 import org.javerland.dataanonymizer.model.TableMetadata;
 
-import java.util.concurrent.Callable;
+import java.sql.Connection;
 
 /**
  * Callable class for processing a table.
@@ -12,9 +12,11 @@ import java.util.concurrent.Callable;
  */
 public class TableProcessor {
 
+    private Connection connection;
     private TableMetadata table;
 
-    public TableProcessor(TableMetadata table) {
+    public TableProcessor(Connection connection, TableMetadata table) {
+        this.connection = connection;
         this.table = table;
     }
 

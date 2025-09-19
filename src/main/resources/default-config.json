@@ -1,2 +1,25 @@
 {
+  "searchColumnTerms": {
+    "email": [],
+    "name": {
+      "tableNameSearchTerms": [],
+      "excludedTableNameSearchTerms": [],
+      "filter": []
+    },
+    "surname": [],
+    "username": [],
+    "address": {
+      "city": [],
+      "county": [],
+      "region": [],
+      "country": [],
+      "postalCode": [],
+      "street": []
+    },
+    "phone": [],
+    "birthDate": [],
+    "customs": []
+  },
+  "excludeTableTerms": [],
+  "excludeColumnTerms": []
 }
