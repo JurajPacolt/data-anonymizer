@@ -1,6 +1,7 @@
 /* Created on 19.09.2025 */
 package org.javerland.dataanonymizer.util;
 
+import org.javerland.dataanonymizer.model.config.Config;
 import org.javerland.dataanonymizer.model.TableMetadata;
 
 import java.sql.Connection;
@@ -12,10 +13,11 @@ import java.sql.Connection;
  */
 public class TableProcessor {
 
+    private Config config;
     private Connection connection;
     private TableMetadata table;
 
-    public TableProcessor(Connection connection, TableMetadata table) {
+    public TableProcessor(Config config, Connection connection, TableMetadata table) {
         this.connection = connection;
         this.table = table;
     }

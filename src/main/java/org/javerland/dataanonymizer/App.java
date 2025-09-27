@@ -1,7 +1,7 @@
 /* Created on 17.09.2025 */
 package org.javerland.dataanonymizer;
 
-import org.javerland.dataanonymizer.model.Config;
+import org.javerland.dataanonymizer.model.config.Config;
 import org.javerland.dataanonymizer.model.TableMetadata;
 import org.javerland.dataanonymizer.util.ConfigUtils;
 import org.javerland.dataanonymizer.util.MetadataReader;
@@ -31,20 +31,20 @@ import java.util.concurrent.Executors;
 //@formatter:on
 public class App implements Runnable {
 
-    @Option(names = { "-d",
-            "--driver" }, description = "JDBC driver class", defaultValue = "org.postgresql.Driver", required = true)
+    @Option(names = {"-d",
+            "--driver"}, description = "JDBC driver class", defaultValue = "org.postgresql.Driver", required = true)
     private String driver = "org.postgresql.Driver";
-    @Option(names = { "-l", "--url" }, description = "URL connection string", required = true)
+    @Option(names = {"-l", "--url"}, description = "URL connection string", required = true)
     private String url = null;
-    @Option(names = { "-u", "--username" }, description = "User name", required = false)
+    @Option(names = {"-u", "--username"}, description = "User name", required = false)
     private String username = null;
-    @Option(names = { "-p", "--password" }, description = "Password", required = false)
+    @Option(names = {"-p", "--password"}, description = "Password", required = false)
     private String password = null;
-    @Option(names = { "-s", "--schema" }, description = "Schema", required = false)
+    @Option(names = {"-s", "--schema"}, description = "Schema", required = false)
     private String schema = null;
-    @Option(names = { "-c", "--config" }, description = "Configuration file", required = false)
+    @Option(names = {"-c", "--config"}, description = "Configuration file", required = false)
     private String configFile = null;
-    @Option(names = { "-t", "--threads" }, description = "Thread pooling count for connections", defaultValue = "5")
+    @Option(names = {"-t", "--threads"}, description = "Thread pooling count for connections", defaultValue = "5")
     private int threadPoolingCount = 5;
 
     @Override
@@ -69,7 +69,7 @@ public class App implements Runnable {
                                 try {
                                     try (Connection connection = DriverManager.getConnection(url, username, password)) {
                                         connection.setAutoCommit(true);
-                                        bs.forEach(b -> new TableProcessor(connection, b).process());
+                                        bs.forEach(b -> new TableProcessor(config, connection, b).process());
                                     }
                                 } catch (SQLException ex) {
                                     throw new IllegalStateException(ex.getMessage(), ex);

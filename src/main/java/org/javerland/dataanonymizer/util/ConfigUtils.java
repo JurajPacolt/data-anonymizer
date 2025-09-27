@@ -5,7 +5,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.stream.JsonReader;
 import org.apache.commons.io.IOUtils;
-import org.javerland.dataanonymizer.model.Config;
+import org.javerland.dataanonymizer.model.config.Config;
 
 import java.io.FileInputStream;
 import java.io.IOException;
