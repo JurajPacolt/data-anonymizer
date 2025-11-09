@@ -1,25 +1,43 @@
 {
   "searchColumnTerms": {
-    "email": [],
+    "email": ["email", "e_mail", "mail", "elektronicka_posta", "elektronicky_mail"],
     "name": {
-      "tableNameSearchTerms": [],
-      "excludedTableNameSearchTerms": [],
-      "filter": []
+      "tableNameSearchTerms": ["user", "person", "customer", "employee", "client", "uzivatel", "osoba", "zakaznik", "zamestnanec", "klient"],
+      "excludedTableNameSearchTerms": ["log", "audit", "history", "historia"],
+      "filter": ["name", "first_name", "firstname", "given_name", "meno", "krstne_meno", "krestni_meno", "jmeno"]
     },
-    "surname": [],
-    "username": [],
+    "surname": ["surname", "last_name", "lastname", "family_name", "priezvisko", "prijmeni"],
+    "fullName": ["full_name", "fullname", "name_full", "cele_meno", "celne_meno", "plne_meno"],
+    "username": ["username", "user_name", "login", "prihlasovacie_meno", "uzivatelske_meno", "uzivatelske_jmeno"],
     "address": {
-      "city": [],
-      "county": [],
-      "region": [],
-      "country": [],
-      "postalCode": [],
-      "street": []
+      "city": ["city", "town", "mesto", "obec"],
+      "county": ["county", "okres"],
+      "region": ["region", "state", "province", "kraj", "zupa"],
+      "country": ["country", "stat", "krajina"],
+      "postalCode": ["postal_code", "zip_code", "zip", "postcode", "psc", "postal_index"],
+      "street": ["street", "address", "street_address", "ulica", "adresa", "ulice"]
     },
-    "phone": [],
-    "birthDate": [],
+    "phone": ["phone", "telephone", "mobile", "cell", "telefon", "telefonne_cislo", "mobil", "mobil_cislo"],
+    "birthDate": ["birth_date", "birthdate", "date_of_birth", "dob", "datum_narodenia", "datum_narozeni", "dat_nar"],
+    "ssn": ["ssn", "social_security", "social_security_number", "rodne_cislo", "rc", "rodni_cislo"],
+    "passportNumber": ["passport", "passport_number", "passport_no", "pas", "cislo_pasu", "cislo_pasu"],
+    "driverLicense": ["driver_license", "driving_license", "license_number", "ridicsky_preukaz", "rp", "ridicak", "ridicsky_prukaz"],
+    "taxId": ["tax_id", "tax_number", "vat_number", "vat_id", "ico", "ic", "dic", "danove_cislo", "danove_identifikacni_cislo"],
+    "nationalId": ["national_id", "id_number", "identity_number", "obciansky_preukaz", "op", "obcansky_prukaz"],
+    "creditCard": ["credit_card", "card_number", "cc_number", "kreditna_karta", "cislo_karty", "platobna_karta", "kreditni_karta"],
+    "iban": ["iban", "international_bank", "bankovni_ucet_iban", "medzinarodne_cislo_uctu"],
+    "bankAccount": ["bank_account", "account_number", "account_no", "bankovy_ucet", "cislo_uctu", "ucet", "bankovni_ucet"],
+    "companyName": ["company_name", "company", "organization", "employer", "firma", "nazov_firmy", "spolecnost", "organizacia", "organizace", "zamestnavatel"],
+    "jobTitle": ["job_title", "position", "title", "role", "pozicia", "pracovna_pozicia", "funkce", "funkcia"],
+    "department": ["department", "dept", "division", "oddelenie", "oddeleni", "divize", "sekcia", "sekce"],
+    "ipAddress": ["ip_address", "ip", "ip_addr", "ip_adresa"],
+    "macAddress": ["mac_address", "mac", "mac_addr", "mac_adresa"],
+    "url": ["url", "website", "web_address", "webova_stranka", "webova_adresa", "webove_stranky"],
+    "domain": ["domain", "domain_name", "domena", "domenove_meno"],
+    "gender": ["gender", "sex", "pohlavie", "pohlavi"],
+    "bloodType": ["blood_type", "blood_group", "krevna_skupina", "krevni_skupina"],
     "customs": []
   },
-  "excludeTableTerms": [],
-  "excludeColumnTerms": []
+  "excludeTableTerms": ["log", "audit", "history", "migration", "historia", "migrace"],
+  "excludeColumnTerms": ["id", "created", "updated", "deleted", "version", "vytvorene", "aktualizovane", "zmazane", "verze", "verzia"]
 }

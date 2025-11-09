@@ -1,0 +1,27 @@
+{
+  "searchColumnTerms": {
+    "email": ["email", "user_email", "kontakt_email"],
+    "name": {
+      "tableNameSearchTerms": ["users", "customers", "uzivatel", "zakaznik"],
+      "excludedTableNameSearchTerms": ["logs", "historia"],
+      "filter": ["first_name", "name", "meno", "krstne_meno"]
+    },
+    "surname": ["last_name", "surname", "priezvisko", "prijmeni"],
+    "username": ["username", "login", "uzivatelske_meno"],
+    "phone": ["phone", "mobile", "telefon", "mobil"],
+    "birthDate": ["birth_date", "dob", "datum_narodenia"],
+    "address": {
+      "city": ["city", "mesto"],
+      "country": ["country", "stat", "krajina"],
+      "postalCode": ["zip", "postal_code", "psc"],
+      "street": ["street", "address", "ulica", "adresa"]
+    },
+    "ssn": ["ssn", "rodne_cislo", "rc"],
+    "taxId": ["tax_id", "ico", "dic"],
+    "creditCard": ["credit_card", "kreditna_karta"],
+    "companyName": ["company_name", "firma", "nazov_firmy"],
+    "customs": ["#{Name.first_name}"]
+  },
+  "excludeTableTerms": ["audit_log", "history", "historia"],
+  "excludeColumnTerms": ["id", "created_at", "updated_at", "vytvorene"]
+}

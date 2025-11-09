@@ -22,39 +22,58 @@ public class ConfigUtils {
 
     @SuppressWarnings("deprecation")
     public static Config load(String fileName) {
-        // TODO fileName can be null, then load only default config
-        // TODO load from config JSON file, read default and nmerge with custom if exists
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
-        // first needed to read default config from resources
-        String defaultConfigJson = String.join("\n",
-                IOUtils.readLines(ConfigUtils.class.getResourceAsStream("/default-config.json"),
-                        StandardCharsets.UTF_8));
-
-        // then read custom config from file
-        String configJson = null;
         try {
-            configJson = String.join("\n", IOUtils.readLines(new FileInputStream(fileName), StandardCharsets.UTF_8));
+            String defaultConfigJson = String.join("\n",
+                    IOUtils.readLines(ConfigUtils.class.getResourceAsStream("/default-config.json"),
+                            StandardCharsets.UTF_8));
+
+            Config config;
+
+            if (fileName == null || fileName.isEmpty()) {
+                config = gson.fromJson(defaultConfigJson, Config.class);
+            } else {
+                String customConfigJson = String.join("\n",
+                        IOUtils.readLines(new FileInputStream(fileName), StandardCharsets.UTF_8));
+
+                JsonReader readerDefault = new JsonReader(new StringReader(defaultConfigJson));
+                readerDefault.setLenient(true);
+                JsonReader readerCustom = new JsonReader(new StringReader(customConfigJson));
+                readerCustom.setLenient(true);
+
+                Map<String, Object> defaultConfigMap = gson.fromJson(readerDefault, Map.class);
+                Map<String, Object> customConfigMap = gson.fromJson(readerCustom, Map.class);
+
+                Map<String, Object> mergedMap = mergeConfigs(defaultConfigMap, customConfigMap);
+
+                String mergedJson = gson.toJson(mergedMap);
+                config = gson.fromJson(mergedJson, Config.class);
+            }
+
+            return config;
         } catch (IOException ex) {
-            throw new IllegalStateException(String.format("Cannot read configuration file: %s", fileName), ex);
+            throw new IllegalStateException(
+                    String.format("Cannot read configuration file: %s", fileName != null ? fileName : "default"), ex);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mergeConfigs(Map<String, Object> defaultConfig, Map<String, Object> customConfig) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>(defaultConfig);
+
+        for (Map.Entry<String, Object> entry : customConfig.entrySet()) {
+            String key = entry.getKey();
+            Object customValue = entry.getValue();
+
+            if (customValue instanceof Map && result.get(key) instanceof Map) {
+                result.put(key, mergeConfigs((Map<String, Object>) result.get(key), (Map<String, Object>) customValue));
+            } else {
+                result.put(key, customValue);
+            }
         }
 
-        // parse both JSONs
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        JsonReader readerDefault = new JsonReader(new StringReader(defaultConfigJson));
-        readerDefault.setLenient(true);
-        JsonReader reader = new JsonReader(new StringReader(configJson));
-        reader.setLenient(true);
-
-        // parse to generic map
-        Map<String, Object> defaultConfigObj = gson.fromJson(readerDefault, Map.class);
-        Map<String, Object> configObj = gson.fromJson(reader, Map.class);
-
-        // merge defaultConfigObj with configObj, configObj has precedence
-        defaultConfigObj.putAll(configObj);
-
-        // TODO map defaultConfigObj to Config class
-
-        return null; // TODO return new Config(configObj);
+        return result;
     }
 
 }
