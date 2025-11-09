@@ -6,7 +6,7 @@
     <groupId>org.javerland</groupId>
     <artifactId>data-anonymizer</artifactId>
     <packaging>jar</packaging>
-    <version>25.4.1</version>
+    <version>25.4.2</version>
     <name>data-anonymizer</name>
 
     <properties>
