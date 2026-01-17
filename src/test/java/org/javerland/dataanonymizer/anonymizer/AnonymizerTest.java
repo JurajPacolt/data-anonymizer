@@ -157,7 +157,7 @@ class AnonymizerTest {
     void testAnonymizeBankAccount() {
         String bankAccount = anonymizer.anonymizeBankAccount();
         assertNotNull(bankAccount);
-        assertFalse(bankAccount.isEmpty());
+        assertTrue(bankAccount.matches("\\d{12}"));
     }
 
     @Test

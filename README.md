@@ -79,7 +79,7 @@ You can create your own configuration file in JSON format. Example:
       "postalCode": ["zip", "postal_code"],
       "street": ["street", "address"]
     },
-    "customs": ["#{Name.first_name}"]
+    "customs": ["nickname=#{Name.firstName}"]
   },
   "excludeTableTerms": ["audit_log", "history"],
   "excludeColumnTerms": ["id", "created_at", "updated_at"]
@@ -93,7 +93,7 @@ You can create your own configuration file in JSON format. Example:
   - `tableNameSearchTerms`: Only tables with these terms in the name
   - `excludedTableNameSearchTerms`: Exclude tables with these terms
   - `filter`: Search terms for column names
-- **customs**: DataFaker expressions for custom data generation (e.g., `#{Name.first_name}`)
+- **customs**: Custom mappings in the form `columnPattern=expression` (e.g., `nickname=#{Name.firstName}`)
 - **excludeTableTerms**: Tables with these terms in the name will not be processed
 - **excludeColumnTerms**: Columns with these terms in the name will not be anonymized
 
@@ -130,6 +130,7 @@ java -jar data-anonymizer-0.0.1.jar \
 - `-s, --schema`: Database schema (optional)
 - `-c, --config`: Path to configuration file (optional, otherwise default configuration is used)
 - `-t, --threads`: Number of threads for parallel processing (default: 5)
+- `-b, --batch-size`: Table batch size for processing (default: 5)
 - `-h, --help`: Display help
 - `-V, --version`: Display version
 
@@ -468,14 +469,14 @@ java -jar data-anonymizer-0.0.1.jar \
 {
   "searchColumnTerms": {
     "email": ["email"],
-    "customs": ["#{Internet.emailAddress}", "#{Name.fullName}", "#{PhoneNumber.cellPhone}"]
+    "customs": ["alt_email=#{Internet.emailAddress}", "full_name=#{Name.fullName}", "cell=#{PhoneNumber.cellPhone}"]
   },
   "excludeTableTerms": [],
   "excludeColumnTerms": ["id"]
 }
 ```
 
-This allows for custom DataFaker expressions to generate specific patterns of fake data.
+Entries in `customs` use `columnPattern=expression` and match column names by substring.
 
 ## Anonymization Types
 

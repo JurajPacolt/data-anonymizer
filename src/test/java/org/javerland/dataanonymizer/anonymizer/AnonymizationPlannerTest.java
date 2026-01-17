@@ -179,6 +179,24 @@ class AnonymizationPlannerTest {
         assertEquals(0, plans.size());
     }
 
+    @Test
+    void testCreatePlan_CustomMapping() {
+        SearchColumnTerms terms = new SearchColumnTerms();
+        terms.setCustoms(List.of("nickname=#{Name.firstName}"));
+
+        Config customConfig = new Config();
+        customConfig.setSearchColumnTerms(terms);
+
+        AnonymizationPlanner customPlanner = new AnonymizationPlanner(customConfig);
+
+        TableMetadata table = createTable("users", "id", "nickname");
+        List<ColumnAnonymizationPlan> plans = customPlanner.createPlan(table);
+
+        assertEquals(1, plans.size());
+        assertEquals(AnonymizationType.CUSTOM, plans.get(0).getType());
+        assertEquals("#{Name.firstName}", plans.get(0).getCustomExpression());
+    }
+
     private TableMetadata createTable(String tableName, String... columnNames) {
         TableMetadata table = new TableMetadata();
         table.setName(tableName);

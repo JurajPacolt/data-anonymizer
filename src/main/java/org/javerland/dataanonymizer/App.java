@@ -46,6 +46,8 @@ public class App implements Runnable {
     private String configFile = null;
     @Option(names = {"-t", "--threads"}, description = "Thread pooling count for connections", defaultValue = "5")
     private int threadPoolingCount = 5;
+    @Option(names = {"-b", "--batch-size"}, description = "Table batch size for processing", defaultValue = "5")
+    private int batchSize = 5;
 
     @Override
     public void run() {
@@ -60,7 +62,8 @@ public class App implements Runnable {
                 conn.setAutoCommit(true);
                 // For first is needed read medata from DB and select all tables ...
                 Map<String, TableMetadata> tables = MetadataReader.loadAllTables(conn, schema);
-                List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, 5);
+                int normalizedBatchSize = Math.max(1, batchSize);
+                List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, normalizedBatchSize);
                 // ... and columns to anonymize by config
                 try (ExecutorService executor = Executors.newFixedThreadPool(threadPoolingCount)) {
                     List<CompletableFuture<Void>> futures = batches.stream()

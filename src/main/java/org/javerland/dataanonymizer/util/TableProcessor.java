@@ -61,15 +61,16 @@ public class TableProcessor {
             return;
         }
 
-        String primaryKey = table.getPrimaryKeys().get(0);
+        List<String> primaryKeys = table.getPrimaryKeys();
         String schema = table.getSchema() != null ? table.getSchema() + "." : "";
         String fullTableName = schema + table.getName();
 
-        String selectQuery = String.format("SELECT %s FROM %s", primaryKey, fullTableName);
+        String selectQuery = String.format("SELECT %s FROM %s", String.join(", ", primaryKeys), fullTableName);
 
         String setClause = plans.stream().map(p -> p.getColumn().getName() + " = ?").collect(Collectors.joining(", "));
 
-        String updateQuery = String.format("UPDATE %s SET %s WHERE %s = ?", fullTableName, setClause, primaryKey);
+        String whereClause = primaryKeys.stream().map(pk -> pk + " = ?").collect(Collectors.joining(" AND "));
+        String updateQuery = String.format("UPDATE %s SET %s WHERE %s", fullTableName, setClause, whereClause);
 
         try (PreparedStatement selectStmt = connection.prepareStatement(selectQuery);
                 ResultSet rs = selectStmt.executeQuery();
@@ -77,15 +78,20 @@ public class TableProcessor {
 
             int rowCount = 0;
             while (rs.next()) {
-                Object pkValue = rs.getObject(primaryKey);
+                Object[] pkValues = new Object[primaryKeys.size()];
+                for (int i = 0; i < primaryKeys.size(); i++) {
+                    pkValues[i] = rs.getObject(primaryKeys.get(i));
+                }
 
                 for (int i = 0; i < plans.size(); i++) {
                     ColumnAnonymizationPlan plan = plans.get(i);
-                    Object anonymizedValue = generateAnonymizedValue(plan);
+                    Object anonymizedValue = normalizeValue(generateAnonymizedValue(plan), plan.getColumn());
                     updateStmt.setObject(i + 1, anonymizedValue);
                 }
 
-                updateStmt.setObject(plans.size() + 1, pkValue);
+                for (int i = 0; i < pkValues.length; i++) {
+                    updateStmt.setObject(plans.size() + i + 1, pkValues[i]);
+                }
                 updateStmt.executeUpdate();
 
                 rowCount++;
@@ -135,6 +141,20 @@ public class TableProcessor {
         case CUSTOM -> plan.getCustomExpression() != null ? anonymizer.anonymizeCustom(plan.getCustomExpression())
                 : null;
         };
+    }
+
+    private Object normalizeValue(Object value, org.javerland.dataanonymizer.model.ColumnMetadata column) {
+        if (!(value instanceof String)) {
+            return value;
+        }
+
+        String strValue = (String) value;
+        int size = column.getSize();
+        if (size > 0 && strValue.length() > size) {
+            return strValue.substring(0, size);
+        }
+
+        return strValue;
     }
 
 }

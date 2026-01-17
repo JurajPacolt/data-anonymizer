@@ -36,6 +36,7 @@ public class AnonymizationPlanner {
         }
 
         SearchColumnTerms terms = config.getSearchColumnTerms();
+        List<CustomMapping> customMappings = parseCustomMappings(terms.getCustoms());
 
         for (ColumnMetadata column : table.getColumns()) {
             String columnName = column.getName().toLowerCase();
@@ -50,16 +51,13 @@ public class AnonymizationPlanner {
 
             AnonymizationType type = determineAnonymizationType(table.getName(), columnName, terms);
             if (type != null) {
-                if (type == AnonymizationType.CUSTOM && terms.getCustoms() != null) {
-                    for (String customExpr : terms.getCustoms()) {
-                        if (columnName.contains(customExpr.toLowerCase())) {
-                            plans.add(new ColumnAnonymizationPlan(column, type, customExpr));
-                            break;
-                        }
-                    }
-                } else {
-                    plans.add(new ColumnAnonymizationPlan(column, type));
-                }
+                plans.add(new ColumnAnonymizationPlan(column, type));
+                continue;
+            }
+
+            String customExpression = findCustomExpression(columnName, customMappings);
+            if (customExpression != null) {
+                plans.add(new ColumnAnonymizationPlan(column, AnonymizationType.CUSTOM, customExpression));
             }
         }
 
@@ -194,8 +192,59 @@ public class AnonymizationPlanner {
             }
         }
 
-        if (terms.getCustoms() != null && matchesAny(columnName, terms.getCustoms())) {
-            return AnonymizationType.CUSTOM;
+        return null;
+    }
+
+    private String findCustomExpression(String columnName, List<CustomMapping> customMappings) {
+        for (CustomMapping mapping : customMappings) {
+            if (columnName.contains(mapping.pattern)) {
+                return mapping.expression;
+            }
+        }
+        return null;
+    }
+
+    private List<CustomMapping> parseCustomMappings(List<String> customs) {
+        if (customs == null || customs.isEmpty()) {
+            return List.of();
+        }
+
+        List<CustomMapping> mappings = new ArrayList<>();
+        for (String entry : customs) {
+            if (entry == null) {
+                continue;
+            }
+
+            String trimmed = entry.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+
+            String[] parts = splitCustomMapping(trimmed);
+            if (parts == null) {
+                mappings.add(new CustomMapping(trimmed.toLowerCase(), trimmed));
+                continue;
+            }
+
+            String pattern = parts[0].trim();
+            String expression = parts[1].trim();
+            if (!pattern.isEmpty() && !expression.isEmpty()) {
+                mappings.add(new CustomMapping(pattern.toLowerCase(), expression));
+            }
+        }
+
+        return mappings;
+    }
+
+    private String[] splitCustomMapping(String value) {
+        int arrowIndex = value.indexOf("=>");
+        if (arrowIndex >= 0) {
+            return new String[] { value.substring(0, arrowIndex), value.substring(arrowIndex + 2) };
+        }
+
+        int equalsIndex = value.indexOf('=');
+        if (equalsIndex >= 0) {
+            return new String[] { value.substring(0, equalsIndex), value.substring(equalsIndex + 1) };
         }
 
         return null;
@@ -242,5 +291,16 @@ public class AnonymizationPlanner {
             return false;
         }
         return matchesAny(columnName, config.getExcludeColumnTerms());
+    }
+
+    private static class CustomMapping {
+
+        private final String pattern;
+        private final String expression;
+
+        private CustomMapping(String pattern, String expression) {
+            this.pattern = pattern;
+            this.expression = expression;
+        }
     }
 }

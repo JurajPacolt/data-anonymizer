@@ -20,7 +20,7 @@
     "taxId": ["tax_id", "ico", "dic"],
     "creditCard": ["credit_card", "kreditna_karta"],
     "companyName": ["company_name", "firma", "nazov_firmy"],
-    "customs": ["#{Name.first_name}"]
+    "customs": ["nickname=#{Name.firstName}"]
   },
   "excludeTableTerms": ["audit_log", "history", "historia"],
   "excludeColumnTerms": ["id", "created_at", "updated_at", "vytvorene"]

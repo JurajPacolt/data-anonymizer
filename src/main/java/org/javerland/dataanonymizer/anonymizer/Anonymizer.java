@@ -111,7 +111,7 @@ public class Anonymizer {
     }
 
     public String anonymizeBankAccount() {
-        return faker.finance().bic();
+        return faker.regexify("[0-9]{12}");
     }
 
     public String anonymizeCompanyName() {
