@@ -6,7 +6,7 @@
     <groupId>org.javerland</groupId>
     <artifactId>data-anonymizer</artifactId>
     <packaging>jar</packaging>
-    <version>26.3.1</version>
+    <version>26.3.2</version>
 
     <name>data-anonymizer</name>
     <description>Data anonymizer by JDBC</description>
