@@ -2,16 +2,20 @@
 package org.javerland.dataanonymizer.anonymizer;
 
 import org.javerland.dataanonymizer.model.ColumnMetadata;
+import org.javerland.dataanonymizer.model.ForeignKeyMetadata;
 import org.javerland.dataanonymizer.model.TableMetadata;
 import org.javerland.dataanonymizer.model.config.Address;
 import org.javerland.dataanonymizer.model.config.Config;
 import org.javerland.dataanonymizer.model.config.Name;
 import org.javerland.dataanonymizer.model.config.SearchColumnTerms;
+import org.javerland.dataanonymizer.util.ConfigUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -121,8 +125,8 @@ class AnonymizationPlannerTest {
         
         assertTrue(plans.size() >= 2, "Should have at least 2 plans, but got: " + plans.size());
         assertTrue(plans.stream().anyMatch(p -> p.getType() == AnonymizationType.EMAIL), "Should have EMAIL type");
-        assertTrue(plans.stream().anyMatch(p -> p.getType() == AnonymizationType.PHONE || p.getType() == AnonymizationType.SURNAME), 
-                   "Should have either PHONE or SURNAME type");
+        assertTrue(plans.stream().anyMatch(p -> p.getType() == AnonymizationType.PHONE), "Should have PHONE type");
+        assertTrue(plans.stream().anyMatch(p -> p.getType() == AnonymizationType.SURNAME), "Should have SURNAME type");
     }
 
     @Test
@@ -195,6 +199,88 @@ class AnonymizationPlannerTest {
         assertEquals(1, plans.size());
         assertEquals(AnonymizationType.CUSTOM, plans.get(0).getType());
         assertEquals("#{Name.firstName}", plans.get(0).getCustomExpression());
+    }
+
+    @Test
+    void testDefaultConfigurationUsesSpecificTypesAndTokenBoundaries() {
+        AnonymizationPlanner defaultPlanner = new AnonymizationPlanner(ConfigUtils.load(null));
+        TableMetadata table = createTable("users", "id", "username", "first_name", "last_name", "full_name",
+                "national_id", "valid_email", "shipping_address", "source");
+
+        List<ColumnAnonymizationPlan> plans = defaultPlanner.createPlan(table);
+
+        assertPlan(plans, "username", AnonymizationType.USERNAME);
+        assertPlan(plans, "first_name", AnonymizationType.NAME);
+        assertPlan(plans, "last_name", AnonymizationType.SURNAME);
+        assertPlan(plans, "full_name", AnonymizationType.FULL_NAME);
+        assertPlan(plans, "national_id", AnonymizationType.NATIONAL_ID);
+        assertPlan(plans, "valid_email", AnonymizationType.EMAIL);
+        assertPlan(plans, "shipping_address", AnonymizationType.STREET);
+        assertTrue(plans.stream().noneMatch(plan -> plan.getColumn().getName().equals("source")));
+    }
+
+    @Test
+    void testForeignKeyIsProtected() {
+        TableMetadata table = createTable("orders", "id", "customer_email", "contact_email");
+        ForeignKeyMetadata foreignKey = new ForeignKeyMetadata();
+        foreignKey.setFkColumn("customer_email");
+        foreignKey.setPkTable("customers");
+        table.getForeignKeys().add(foreignKey);
+
+        List<ColumnAnonymizationPlan> plans = planner.createPlan(table);
+
+        assertTrue(plans.stream().noneMatch(plan -> plan.getColumn().getName().equals("customer_email")));
+        assertTrue(plans.stream().anyMatch(plan -> plan.getColumn().getName().equals("contact_email")));
+    }
+
+    @Test
+    void testDefaultConfigurationMapsEveryBuiltInType() {
+        Map<String, AnonymizationType> expected = new LinkedHashMap<>();
+        expected.put("email", AnonymizationType.EMAIL);
+        expected.put("first_name", AnonymizationType.NAME);
+        expected.put("last_name", AnonymizationType.SURNAME);
+        expected.put("username", AnonymizationType.USERNAME);
+        expected.put("phone", AnonymizationType.PHONE);
+        expected.put("birth_date", AnonymizationType.BIRTH_DATE);
+        expected.put("city", AnonymizationType.CITY);
+        expected.put("county", AnonymizationType.COUNTY);
+        expected.put("region", AnonymizationType.REGION);
+        expected.put("country", AnonymizationType.COUNTRY);
+        expected.put("postal_code", AnonymizationType.POSTAL_CODE);
+        expected.put("street", AnonymizationType.STREET);
+        expected.put("ssn", AnonymizationType.SSN);
+        expected.put("passport_number", AnonymizationType.PASSPORT_NUMBER);
+        expected.put("driver_license", AnonymizationType.DRIVER_LICENSE);
+        expected.put("tax_id", AnonymizationType.TAX_ID);
+        expected.put("national_id", AnonymizationType.NATIONAL_ID);
+        expected.put("credit_card", AnonymizationType.CREDIT_CARD);
+        expected.put("iban", AnonymizationType.IBAN);
+        expected.put("bank_account", AnonymizationType.BANK_ACCOUNT);
+        expected.put("company_name", AnonymizationType.COMPANY_NAME);
+        expected.put("job_title", AnonymizationType.JOB_TITLE);
+        expected.put("department", AnonymizationType.DEPARTMENT);
+        expected.put("ip_address", AnonymizationType.IP_ADDRESS);
+        expected.put("mac_address", AnonymizationType.MAC_ADDRESS);
+        expected.put("url", AnonymizationType.URL);
+        expected.put("domain", AnonymizationType.DOMAIN);
+        expected.put("full_name", AnonymizationType.FULL_NAME);
+        expected.put("gender", AnonymizationType.GENDER);
+        expected.put("blood_type", AnonymizationType.BLOOD_TYPE);
+
+        List<String> columns = new ArrayList<>();
+        columns.add("id");
+        columns.addAll(expected.keySet());
+        TableMetadata table = createTable("users", columns.toArray(String[]::new));
+
+        List<ColumnAnonymizationPlan> plans = new AnonymizationPlanner(ConfigUtils.load(null)).createPlan(table);
+
+        assertEquals(expected.size(), plans.size());
+        expected.forEach((column, type) -> assertPlan(plans, column, type));
+    }
+
+    private void assertPlan(List<ColumnAnonymizationPlan> plans, String columnName, AnonymizationType type) {
+        assertTrue(plans.stream().anyMatch(plan -> plan.getColumn().getName().equals(columnName)
+                && plan.getType() == type), () -> "Missing plan " + columnName + " -> " + type);
     }
 
     private TableMetadata createTable(String tableName, String... columnNames) {

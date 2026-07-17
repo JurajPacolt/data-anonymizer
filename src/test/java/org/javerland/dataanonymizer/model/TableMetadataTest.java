@@ -128,4 +128,29 @@ class TableMetadataTest {
         assertTrue(result.contains("users"));
         assertTrue(result.contains("id"));
     }
+
+    @Test
+    void testQualifiedKeyAndCaseInsensitiveProtectionRules() {
+        TableMetadata table = new TableMetadata();
+        table.setCatalog("APP");
+        table.setSchema("Sales");
+        table.setName("Customers");
+        table.setPrimaryKeys(List.of("ID"));
+        table.setReferencedKeyColumns(Set.of("NATIONAL_ID"));
+        table.setUniqueColumns(Set.of("USERNAME"));
+        ForeignKeyMetadata foreignKey = new ForeignKeyMetadata();
+        foreignKey.setFkColumn("ACCOUNT_ID");
+        table.setForeignKeys(List.of(foreignKey));
+
+        assertEquals("app.sales.customers", table.getKey());
+        assertTrue(table.isProtectedKey("id"));
+        assertTrue(table.isProtectedKey("account_id"));
+        assertTrue(table.isProtectedKey("national_id"));
+        assertFalse(table.isProtectedKey("email"));
+        assertTrue(table.isUnique("username"));
+        assertEquals("primary key", table.protectionReason("id"));
+        assertEquals("foreign key", table.protectionReason("account_id"));
+        assertEquals("referenced key", table.protectionReason("national_id"));
+        assertNull(table.protectionReason("email"));
+    }
 }

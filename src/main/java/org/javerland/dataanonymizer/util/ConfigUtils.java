@@ -3,14 +3,14 @@ package org.javerland.dataanonymizer.util;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.stream.JsonReader;
-import org.apache.commons.io.IOUtils;
+import com.google.gson.reflect.TypeToken;
 import org.javerland.dataanonymizer.model.config.Config;
 
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.StringReader;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -20,30 +20,28 @@ import java.util.Map;
  */
 public class ConfigUtils {
 
-    @SuppressWarnings("deprecation")
     public static Config load(String fileName) {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         try {
-            String defaultConfigJson = String.join("\n",
-                    IOUtils.readLines(ConfigUtils.class.getResourceAsStream("/default-config.json"),
-                            StandardCharsets.UTF_8));
+            String defaultConfigJson;
+            try (InputStream defaultConfig = ConfigUtils.class.getResourceAsStream("/default-config.json")) {
+                if (defaultConfig == null) {
+                    throw new IllegalStateException("Default configuration resource is missing");
+                }
+                defaultConfigJson = new String(defaultConfig.readAllBytes(), StandardCharsets.UTF_8);
+            }
 
             Config config;
 
             if (fileName == null || fileName.isEmpty()) {
                 config = gson.fromJson(defaultConfigJson, Config.class);
             } else {
-                String customConfigJson = String.join("\n",
-                        IOUtils.readLines(new FileInputStream(fileName), StandardCharsets.UTF_8));
+                String customConfigJson = Files.readString(Path.of(fileName), StandardCharsets.UTF_8);
 
-                JsonReader readerDefault = new JsonReader(new StringReader(defaultConfigJson));
-                readerDefault.setLenient(true);
-                JsonReader readerCustom = new JsonReader(new StringReader(customConfigJson));
-                readerCustom.setLenient(true);
-
-                Map<String, Object> defaultConfigMap = gson.fromJson(readerDefault, Map.class);
-                Map<String, Object> customConfigMap = gson.fromJson(readerCustom, Map.class);
+                java.lang.reflect.Type mapType = new TypeToken<Map<String, Object>>() { }.getType();
+                Map<String, Object> defaultConfigMap = gson.fromJson(defaultConfigJson, mapType);
+                Map<String, Object> customConfigMap = gson.fromJson(customConfigJson, mapType);
 
                 Map<String, Object> mergedMap = mergeConfigs(defaultConfigMap, customConfigMap);
 
@@ -51,6 +49,7 @@ public class ConfigUtils {
                 config = gson.fromJson(mergedJson, Config.class);
             }
 
+            ConfigValidator.validate(config);
             return config;
         } catch (IOException ex) {
             throw new IllegalStateException(

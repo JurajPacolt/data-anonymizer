@@ -12,7 +12,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -22,85 +27,147 @@ import java.util.stream.Collectors;
  */
 public class TableProcessor {
 
-    private Config config;
-    private Connection connection;
-    private TableMetadata table;
-    private Anonymizer anonymizer;
-    private AnonymizationPlanner planner;
+    private final Connection connection;
+    private final TableMetadata table;
+    private final Anonymizer anonymizer;
+    private final AnonymizationPlanner planner;
+    private final int jdbcBatchSize;
+    private final int fetchSize;
 
     public TableProcessor(Config config, Connection connection, TableMetadata table) {
-        this.config = config;
+        this(config, connection, table, 500, 1_000, Locale.ENGLISH);
+    }
+
+    public TableProcessor(Config config, Connection connection, TableMetadata table, int jdbcBatchSize, int fetchSize,
+            Locale locale) {
         this.connection = connection;
         this.table = table;
-        this.anonymizer = new Anonymizer();
+        this.jdbcBatchSize = Math.max(1, jdbcBatchSize);
+        this.fetchSize = Math.max(1, fetchSize);
+        this.anonymizer = new Anonymizer(locale);
         this.planner = new AnonymizationPlanner(config);
     }
 
-    public void process() {
+    public int process() {
         List<ColumnAnonymizationPlan> plans = planner.createPlan(table);
 
         if (plans.isEmpty()) {
             System.out.println("Skipping table (no columns to anonymize): " + table.getName());
-            return;
+            return 0;
+        }
+
+        if (table.getPrimaryKeys().isEmpty()) {
+            System.out.println("Warning: Table " + table.getName() + " has no primary key. Skipping.");
+            return 0;
         }
 
         System.out.println("Processing table: " + table.getName() + " (" + plans.size() + " columns to anonymize)");
 
+        boolean originalAutoCommit;
         try {
-            anonymizeTable(plans);
-            System.out.println("Completed table: " + table.getName());
+            originalAutoCommit = connection.getAutoCommit();
         } catch (SQLException ex) {
+            throw new IllegalStateException("Cannot read transaction state", ex);
+        }
+
+        try {
+            connection.setAutoCommit(false);
+            int rowCount = anonymizeTable(plans);
+            connection.commit();
+            System.out.println("Completed table: " + table.getName());
+            return rowCount;
+        } catch (SQLException | RuntimeException ex) {
+            rollback(ex);
             System.err.println("Error processing table " + table.getName() + ": " + ex.getMessage());
             throw new RuntimeException("Failed to anonymize table: " + table.getName(), ex);
+        } finally {
+            try {
+                connection.setAutoCommit(originalAutoCommit);
+            } catch (SQLException ex) {
+                System.err.println("Warning: Cannot restore auto-commit for table " + table.getName() + ": "
+                        + ex.getMessage());
+            }
         }
     }
 
-    private void anonymizeTable(List<ColumnAnonymizationPlan> plans) throws SQLException {
-        if (table.getPrimaryKeys().isEmpty()) {
-            System.out.println("Warning: Table " + table.getName() + " has no primary key. Skipping.");
-            return;
-        }
-
+    private int anonymizeTable(List<ColumnAnonymizationPlan> plans) throws SQLException {
         List<String> primaryKeys = table.getPrimaryKeys();
-        String schema = table.getSchema() != null ? table.getSchema() + "." : "";
-        String fullTableName = schema + table.getName();
+        SqlIdentifierQuoter quoter = new SqlIdentifierQuoter(connection.getMetaData());
+        String fullTableName = quoter.tableName(table);
 
-        String selectQuery = String.format("SELECT %s FROM %s", String.join(", ", primaryKeys), fullTableName);
+        String selectQuery = String.format("SELECT %s FROM %s",
+                primaryKeys.stream().map(quoter::quote).collect(Collectors.joining(", ")), fullTableName);
 
-        String setClause = plans.stream().map(p -> p.getColumn().getName() + " = ?").collect(Collectors.joining(", "));
+        String setClause = plans.stream().map(p -> quoter.quote(p.getColumn().getName()) + " = ?")
+                .collect(Collectors.joining(", "));
 
-        String whereClause = primaryKeys.stream().map(pk -> pk + " = ?").collect(Collectors.joining(" AND "));
+        String whereClause = primaryKeys.stream().map(pk -> quoter.quote(pk) + " = ?")
+                .collect(Collectors.joining(" AND "));
         String updateQuery = String.format("UPDATE %s SET %s WHERE %s", fullTableName, setClause, whereClause);
 
         try (PreparedStatement selectStmt = connection.prepareStatement(selectQuery);
-                ResultSet rs = selectStmt.executeQuery();
                 PreparedStatement updateStmt = connection.prepareStatement(updateQuery)) {
 
+            selectStmt.setFetchSize(fetchSize);
+            Map<String, Set<Object>> generatedUniqueValues = new HashMap<>();
+
             int rowCount = 0;
-            while (rs.next()) {
-                Object[] pkValues = new Object[primaryKeys.size()];
-                for (int i = 0; i < primaryKeys.size(); i++) {
-                    pkValues[i] = rs.getObject(primaryKeys.get(i));
-                }
+            try (ResultSet rs = selectStmt.executeQuery()) {
+                while (rs.next()) {
+                    Object[] pkValues = new Object[primaryKeys.size()];
+                    for (int i = 0; i < primaryKeys.size(); i++) {
+                        pkValues[i] = rs.getObject(i + 1);
+                    }
 
-                for (int i = 0; i < plans.size(); i++) {
-                    ColumnAnonymizationPlan plan = plans.get(i);
-                    Object anonymizedValue = normalizeValue(generateAnonymizedValue(plan), plan.getColumn());
-                    updateStmt.setObject(i + 1, anonymizedValue);
-                }
+                    for (int i = 0; i < plans.size(); i++) {
+                        ColumnAnonymizationPlan plan = plans.get(i);
+                        Object anonymizedValue = generateNormalizedValue(plan, generatedUniqueValues);
+                        updateStmt.setObject(i + 1, anonymizedValue);
+                    }
 
-                for (int i = 0; i < pkValues.length; i++) {
-                    updateStmt.setObject(plans.size() + i + 1, pkValues[i]);
-                }
-                updateStmt.executeUpdate();
+                    for (int i = 0; i < pkValues.length; i++) {
+                        updateStmt.setObject(plans.size() + i + 1, pkValues[i]);
+                    }
+                    updateStmt.addBatch();
 
-                rowCount++;
-                if (rowCount % 1000 == 0) {
-                    System.out.println("  Processed " + rowCount + " rows in " + table.getName());
+                    rowCount++;
+                    if (rowCount % jdbcBatchSize == 0) {
+                        updateStmt.executeBatch();
+                    }
+                    if (rowCount % 1000 == 0) {
+                        System.out.println("  Processed " + rowCount + " rows in " + table.getName());
+                    }
                 }
+            }
+            if (rowCount % jdbcBatchSize != 0) {
+                updateStmt.executeBatch();
             }
 
             System.out.println("  Total rows anonymized: " + rowCount);
+            return rowCount;
+        }
+    }
+
+    private Object generateNormalizedValue(ColumnAnonymizationPlan plan, Map<String, Set<Object>> uniqueValues) {
+        String columnName = plan.getColumn().getName();
+        Set<Object> usedValues = table.isUnique(columnName)
+                ? uniqueValues.computeIfAbsent(columnName.toLowerCase(Locale.ROOT), ignored -> new HashSet<>())
+                : null;
+
+        for (int attempt = 0; attempt < 100; attempt++) {
+            Object value = normalizeValue(generateAnonymizedValue(plan), plan.getColumn());
+            if (usedValues == null || usedValues.add(value)) {
+                return value;
+            }
+        }
+        throw new IllegalStateException("Could not generate a unique value for " + table.getName() + "." + columnName);
+    }
+
+    private void rollback(Exception original) {
+        try {
+            connection.rollback();
+        } catch (SQLException rollbackError) {
+            original.addSuppressed(rollbackError);
         }
     }
 

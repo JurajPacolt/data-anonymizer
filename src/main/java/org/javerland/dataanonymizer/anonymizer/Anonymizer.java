@@ -42,7 +42,7 @@ public class Anonymizer {
     }
 
     public String anonymizeUsername() {
-        return faker.internet().username();
+        return faker.credentials().username();
     }
 
     public String anonymizePhone() {
@@ -59,7 +59,8 @@ public class Anonymizer {
     }
 
     public String anonymizeCounty() {
-        return faker.address().city();
+        String county = faker.address().countyByZipCode(faker.address().zipCode());
+        return county == null || county.isBlank() ? faker.address().state() : county;
     }
 
     public String anonymizeRegion() {
@@ -123,7 +124,7 @@ public class Anonymizer {
     }
 
     public String anonymizeDepartment() {
-        return faker.company().industry();
+        return faker.commerce().department();
     }
 
     public String anonymizeIpAddress() {

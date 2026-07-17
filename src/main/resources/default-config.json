@@ -2,8 +2,8 @@
   "searchColumnTerms": {
     "email": ["email", "e_mail", "mail", "elektronicka_posta", "elektronicky_mail"],
     "name": {
-      "tableNameSearchTerms": ["user", "person", "customer", "employee", "client", "uzivatel", "osoba", "zakaznik", "zamestnanec", "klient"],
-      "excludedTableNameSearchTerms": ["log", "audit", "history", "historia"],
+      "tableNameSearchTerms": ["user", "users", "person", "persons", "people", "customer", "customers", "employee", "employees", "client", "clients", "uzivatel", "uzivatelia", "osoba", "osoby", "zakaznik", "zakaznici", "zamestnanec", "zamestnanci", "klient", "klienti"],
+      "excludedTableNameSearchTerms": ["log", "logs", "audit", "history", "historia"],
       "filter": ["name", "first_name", "firstname", "given_name", "meno", "krstne_meno", "krestni_meno", "jmeno"]
     },
     "surname": ["surname", "last_name", "lastname", "family_name", "priezvisko", "prijmeni"],
@@ -38,6 +38,6 @@
     "bloodType": ["blood_type", "blood_group", "krevna_skupina", "krevni_skupina"],
     "customs": []
   },
-  "excludeTableTerms": ["log", "audit", "history", "migration", "historia", "migrace"],
-  "excludeColumnTerms": ["id", "created", "updated", "deleted", "version", "vytvorene", "aktualizovane", "zmazane", "verze", "verzia"]
+  "excludeTableTerms": ["log", "logs", "audit", "history", "migration", "migrations", "historia", "migrace"],
+  "excludeColumnTerms": ["id", "created", "created_at", "created_on", "updated", "updated_at", "updated_on", "deleted", "deleted_at", "version", "vytvorene", "aktualizovane", "zmazane", "verze", "verzia"]
 }

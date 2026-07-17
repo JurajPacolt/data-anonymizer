@@ -43,8 +43,8 @@ class TableSorterTest {
         List<TableMetadata> sorted = TableSorter.sortByDependencies(tables);
         
         assertEquals(2, sorted.size());
-        assertEquals("orders", sorted.get(0).getName());
-        assertEquals("users", sorted.get(1).getName());
+        assertEquals("users", sorted.get(0).getName());
+        assertEquals("orders", sorted.get(1).getName());
     }
 
     @Test
@@ -68,8 +68,8 @@ class TableSorterTest {
         int usersIndex = findTableIndex(sorted, "users");
         int productsIndex = findTableIndex(sorted, "products");
         
-        assertTrue(usersIndex > ordersIndex);
-        assertTrue(productsIndex > ordersIndex);
+        assertTrue(usersIndex < ordersIndex);
+        assertTrue(productsIndex < ordersIndex);
     }
 
     @Test
@@ -89,9 +89,9 @@ class TableSorterTest {
         List<TableMetadata> sorted = TableSorter.sortByDependencies(tables);
         
         assertEquals(3, sorted.size());
-        assertEquals("addresses", sorted.get(0).getName());
+        assertEquals("countries", sorted.get(0).getName());
         assertEquals("cities", sorted.get(1).getName());
-        assertEquals("countries", sorted.get(2).getName());
+        assertEquals("addresses", sorted.get(2).getName());
     }
 
     @Test
@@ -143,8 +143,8 @@ class TableSorterTest {
         int usersIndex = findTableIndex(sorted, "users");
         int rolesIndex = findTableIndex(sorted, "roles");
         
-        assertTrue(usersIndex > userRolesIndex);
-        assertTrue(rolesIndex > userRolesIndex);
+        assertTrue(usersIndex < userRolesIndex);
+        assertTrue(rolesIndex < userRolesIndex);
     }
 
     private TableMetadata createTable(String name) {

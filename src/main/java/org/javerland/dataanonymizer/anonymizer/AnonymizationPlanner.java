@@ -39,25 +39,25 @@ public class AnonymizationPlanner {
         List<CustomMapping> customMappings = parseCustomMappings(terms.getCustoms());
 
         for (ColumnMetadata column : table.getColumns()) {
-            String columnName = column.getName().toLowerCase();
+            String columnName = column.getName();
 
             if (isColumnExcluded(columnName)) {
                 continue;
             }
 
-            if (table.getPrimaryKeys().contains(column.getName())) {
-                continue;
-            }
-
-            AnonymizationType type = determineAnonymizationType(table.getName(), columnName, terms);
-            if (type != null) {
-                plans.add(new ColumnAnonymizationPlan(column, type));
+            if (table.isProtectedKey(column.getName())) {
                 continue;
             }
 
             String customExpression = findCustomExpression(columnName, customMappings);
             if (customExpression != null) {
                 plans.add(new ColumnAnonymizationPlan(column, AnonymizationType.CUSTOM, customExpression));
+                continue;
+            }
+
+            AnonymizationType type = determineAnonymizationType(table.getName(), columnName, terms);
+            if (type != null) {
+                plans.add(new ColumnAnonymizationPlan(column, type));
             }
         }
 
@@ -70,23 +70,16 @@ public class AnonymizationPlanner {
             return AnonymizationType.EMAIL;
         }
 
-        if (terms.getName() != null) {
-            Name nameConfig = terms.getName();
-            if (matchesName(tableName, columnName, nameConfig)) {
-                return AnonymizationType.NAME;
-            }
-        }
-
-        if (terms.getSurname() != null && matchesAny(columnName, terms.getSurname())) {
-            return AnonymizationType.SURNAME;
-        }
-
         if (terms.getFullName() != null && matchesAny(columnName, terms.getFullName())) {
             return AnonymizationType.FULL_NAME;
         }
 
         if (terms.getUsername() != null && matchesAny(columnName, terms.getUsername())) {
             return AnonymizationType.USERNAME;
+        }
+
+        if (terms.getSurname() != null && matchesAny(columnName, terms.getSurname())) {
+            return AnonymizationType.SURNAME;
         }
 
         if (terms.getPhone() != null && matchesAny(columnName, terms.getPhone())) {
@@ -192,12 +185,21 @@ public class AnonymizationPlanner {
             }
         }
 
+        // NAME is intentionally last because it is the broadest category and
+        // would otherwise shadow username, full name, company name, etc.
+        if (terms.getName() != null) {
+            Name nameConfig = terms.getName();
+            if (matchesName(tableName, columnName, nameConfig)) {
+                return AnonymizationType.NAME;
+            }
+        }
+
         return null;
     }
 
     private String findCustomExpression(String columnName, List<CustomMapping> customMappings) {
         for (CustomMapping mapping : customMappings) {
-            if (columnName.contains(mapping.pattern)) {
+            if (IdentifierMatcher.matchesTerm(columnName, mapping.pattern)) {
                 return mapping.expression;
             }
         }
@@ -222,14 +224,14 @@ public class AnonymizationPlanner {
 
             String[] parts = splitCustomMapping(trimmed);
             if (parts == null) {
-                mappings.add(new CustomMapping(trimmed.toLowerCase(), trimmed));
+                mappings.add(new CustomMapping(trimmed, trimmed));
                 continue;
             }
 
             String pattern = parts[0].trim();
             String expression = parts[1].trim();
             if (!pattern.isEmpty() && !expression.isEmpty()) {
-                mappings.add(new CustomMapping(pattern.toLowerCase(), expression));
+                mappings.add(new CustomMapping(pattern, expression));
             }
         }
 
@@ -260,14 +262,14 @@ public class AnonymizationPlanner {
         }
 
         if (nameConfig.getTableNameSearchTerms() != null && !nameConfig.getTableNameSearchTerms().isEmpty()) {
-            if (!matchesAny(tableName.toLowerCase(), nameConfig.getTableNameSearchTerms())) {
+            if (!matchesAny(tableName, nameConfig.getTableNameSearchTerms())) {
                 return false;
             }
         }
 
         if (nameConfig.getExcludedTableNameSearchTerms() != null
                 && !nameConfig.getExcludedTableNameSearchTerms().isEmpty()) {
-            if (matchesAny(tableName.toLowerCase(), nameConfig.getExcludedTableNameSearchTerms())) {
+            if (matchesAny(tableName, nameConfig.getExcludedTableNameSearchTerms())) {
                 return false;
             }
         }
@@ -276,21 +278,21 @@ public class AnonymizationPlanner {
     }
 
     private boolean matchesAny(String value, List<String> patterns) {
-        return patterns.stream().anyMatch(pattern -> value.contains(pattern.toLowerCase()));
+        return IdentifierMatcher.matchesAnyTerm(value, patterns);
     }
 
     private boolean isTableExcluded(String tableName) {
         if (config.getExcludeTableTerms() == null || config.getExcludeTableTerms().isEmpty()) {
             return false;
         }
-        return matchesAny(tableName.toLowerCase(), config.getExcludeTableTerms());
+        return matchesAny(tableName, config.getExcludeTableTerms());
     }
 
     private boolean isColumnExcluded(String columnName) {
         if (config.getExcludeColumnTerms() == null || config.getExcludeColumnTerms().isEmpty()) {
             return false;
         }
-        return matchesAny(columnName, config.getExcludeColumnTerms());
+        return IdentifierMatcher.matchesAnyExact(columnName, config.getExcludeColumnTerms());
     }
 
     private static class CustomMapping {

@@ -44,8 +44,8 @@ class TableBatcherTest {
         List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, 2);
         
         assertEquals(2, batches.size());
-        assertEquals("orders", batches.get(0).get(0).getName());
-        assertEquals("users", batches.get(1).get(0).getName());
+        assertEquals("users", batches.get(0).get(0).getName());
+        assertEquals("orders", batches.get(1).get(0).getName());
     }
 
     @Test
@@ -93,9 +93,9 @@ class TableBatcherTest {
         List<List<TableMetadata>> batches = TableBatcher.splitIntoBatches(tables, 2);
         
         assertEquals(3, batches.size());
-        assertEquals("addresses", batches.get(0).get(0).getName());
+        assertEquals("countries", batches.get(0).get(0).getName());
         assertEquals("cities", batches.get(1).get(0).getName());
-        assertEquals("countries", batches.get(2).get(0).getName());
+        assertEquals("addresses", batches.get(2).get(0).getName());
     }
 
     @Test
@@ -122,7 +122,8 @@ class TableBatcherTest {
         
         Set<String> firstLayer = new HashSet<>();
         batches.get(0).forEach(t -> firstLayer.add(t.getName()));
-        assertTrue(firstLayer.contains("payments") || firstLayer.contains("orders"));
+        assertTrue(firstLayer.contains("users"));
+        assertTrue(firstLayer.contains("products"));
     }
 
     @Test
@@ -169,12 +170,28 @@ class TableBatcherTest {
         
         assertTrue(batches.size() >= 3);
         
-        assertEquals("table4", batches.get(0).get(0).getName());
+        assertEquals("table1", batches.get(0).get(0).getName());
         
         Set<String> secondLayer = new HashSet<>();
         batches.get(1).forEach(t -> secondLayer.add(t.getName()));
         assertTrue(secondLayer.contains("table2"));
         assertTrue(secondLayer.contains("table3"));
+    }
+
+    @Test
+    void testSplitIntoBatches_CycleIsNotDropped() {
+        Map<String, TableMetadata> tables = new LinkedHashMap<>();
+        TableMetadata first = createTable("first");
+        TableMetadata second = createTable("second");
+        addForeignKey(first, "second");
+        addForeignKey(second, "first");
+        tables.put("first", first);
+        tables.put("second", second);
+
+        TableBatcher.ExecutionPlan plan = TableBatcher.createExecutionPlan(tables, 5);
+
+        assertEquals(2, plan.unresolvedTables().size());
+        assertEquals(2, plan.layers().stream().flatMap(List::stream).flatMap(List::stream).count());
     }
 
     private TableMetadata createTable(String name) {
